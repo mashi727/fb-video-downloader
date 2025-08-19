@@ -32,17 +32,25 @@ pip install .
 
 ### Command Line Interface
 
+After installation, you can use the `fbdl` command:
+
 ```bash
 # Basic usage
-python fb_downloader_cli.py <Facebook_Video_URL>
+fbdl <Facebook_Video_URL>
 
 # With custom output filename
-python fb_downloader_cli.py <Facebook_Video_URL> output_video.mp4
+fbdl <Facebook_Video_URL> output_video.mp4
 
 # Examples
-python fb_downloader_cli.py https://www.facebook.com/watch/?v=123456789
-python fb_downloader_cli.py https://www.facebook.com/share/v/VIDEO_ID/
-python fb_downloader_cli.py 'https://www.facebook.com/reel/123456789' my_video.mp4
+fbdl https://www.facebook.com/watch/?v=123456789
+fbdl https://www.facebook.com/share/v/VIDEO_ID/
+fbdl 'https://www.facebook.com/reel/123456789' my_video.mp4
+```
+
+Alternatively, you can run directly without installation:
+
+```bash
+python fb_downloader_cli.py <Facebook_Video_URL>
 ```
 
 ### As a Python Module
@@ -51,7 +59,7 @@ python fb_downloader_cli.py 'https://www.facebook.com/reel/123456789' my_video.m
 from fb_downloader import Application
 
 app = Application()
-app.run(['fb_downloader', 'https://www.facebook.com/watch/?v=123456789'])
+app.run(['fbdl', 'https://www.facebook.com/watch/?v=123456789'])
 ```
 
 ### Advanced Usage

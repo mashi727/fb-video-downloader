@@ -56,7 +56,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "fb-downloader=fb_downloader.core.application:main",
+            "fbdl=fb_downloader.core.application:main",
         ],
     },
     include_package_data=True,

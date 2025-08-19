@@ -79,11 +79,11 @@ class Application:
     @staticmethod
     def _show_usage():
         """Show usage"""
-        print("Usage: fb-downloader <Facebook video URL> [output filename]")
+        print("Usage: fbdl <Facebook video URL> [output filename]")
         print("Examples:")
-        print("  fb-downloader https://www.facebook.com/watch/?v=123456789")
-        print("  fb-downloader https://www.facebook.com/share/v/VIDEO_ID/")
-        print("  fb-downloader 'https://www.facebook.com/reel/123456789' my_video.mp4")
+        print("  fbdl https://www.facebook.com/watch/?v=123456789")
+        print("  fbdl https://www.facebook.com/share/v/VIDEO_ID/")
+        print("  fbdl 'https://www.facebook.com/reel/123456789' my_video.mp4")
     
     @staticmethod
     def _show_header():

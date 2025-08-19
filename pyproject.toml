@@ -48,7 +48,7 @@ Homepage = "https://github.com/yourusername/fb-video-downloader"
 Documentation = "https://github.com/yourusername/fb-video-downloader#readme"
 
 [project.scripts]
-fb-downloader = "fb_downloader.core.application:main"
+fbdl = "fb_downloader.core.application:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
