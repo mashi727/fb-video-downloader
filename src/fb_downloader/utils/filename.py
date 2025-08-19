@@ -87,33 +87,43 @@ class FileNameGenerator:
         try:
             # Create prompt for claude
             prompt = (
-                f"Summarize the following text into a short filename (max {max_length} chars). "
-                "Output only the filename without extension, using underscores for spaces. "
-                "Keep it descriptive but concise. Remove special characters.\n\n"
+                f"You are creating a filename from the following text. "
+                f"Create a short, descriptive filename (max {max_length} chars). "
+                f"Use underscores for spaces. No file extension. "
+                f"Be concise but keep the main topic clear.\n\n"
                 f"Text: {text}\n\n"
-                "Filename:"
+                f"Output only the filename, nothing else:"
             )
             
-            # Execute claude -p command
+            # Execute claude command with prompt via stdin
             result = subprocess.run(
-                ["claude", "-p", prompt],
+                ["claude", "-p"],
+                input=prompt,
                 capture_output=True,
                 text=True,
-                timeout=5,  # 5 second timeout
+                timeout=10,  # 10 second timeout
                 check=False
             )
             
             if result.returncode == 0 and result.stdout:
                 # Clean and validate the output
-                summary = result.stdout.strip()
-                # Remove any quotes if present
-                summary = summary.strip('"\'')
-                # Ensure it's not too long
-                if len(summary) <= max_length and summary:
-                    logger.debug(f"Successfully summarized with claude: {summary}")
-                    return summary
+                # Get the last non-empty line (claude might output multiple lines)
+                lines = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+                if lines:
+                    summary = lines[-1]  # Take the last line as the filename
+                    # Remove any quotes if present
+                    summary = summary.strip('"\'')
+                    # Remove any file extensions if accidentally included
+                    summary = summary.replace('.mp4', '').replace('.MP4', '')
+                    # Ensure it's not too long
+                    if len(summary) <= max_length and summary:
+                        print(f"📝 Using claude -p for filename: {summary}")
+                        logger.debug(f"Successfully summarized with claude: {summary}")
+                        return summary
             else:
-                logger.debug("claude -p command failed or returned empty result")
+                logger.info(f"claude -p command failed with return code {result.returncode}")
+                if result.stderr:
+                    logger.debug(f"stderr: {result.stderr}")
                 
         except FileNotFoundError:
             logger.debug("claude command not found in PATH")
