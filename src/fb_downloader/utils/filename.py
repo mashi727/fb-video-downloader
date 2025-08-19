@@ -4,10 +4,14 @@ Filename generation utility
 
 import re
 import unicodedata
+import subprocess
+import logging
 from datetime import datetime
 from typing import Optional
 
 from ..core.models import VideoInfo
+
+logger = logging.getLogger(__name__)
 
 
 class FileNameGenerator:
@@ -59,20 +63,70 @@ class FileNameGenerator:
     
     @classmethod
     def _create_content_summary(cls, video_info: VideoInfo) -> str:
-        """Create video content summary"""
+        """Create video content summary using claude -p if available"""
         # Prioritize title
+        text_to_summarize = None
         if video_info.title:
-            return cls._summarize_text(video_info.title, target_length=40)
+            text_to_summarize = video_info.title
+        elif video_info.description:
+            text_to_summarize = video_info.description
+        else:
+            return ""
         
-        # Use description if no title
-        if video_info.description:
-            return cls._summarize_text(video_info.description, target_length=35)
+        # Try to use claude -p for summarization
+        summarized = cls._summarize_with_claude(text_to_summarize)
+        if summarized:
+            return cls._sanitize_filename(summarized)
         
-        return ""
+        # Fallback to local summarization
+        return cls._summarize_text(text_to_summarize, target_length=40)
+    
+    @classmethod
+    def _summarize_with_claude(cls, text: str, max_length: int = 60) -> Optional[str]:
+        """Summarize text using claude -p command"""
+        try:
+            # Create prompt for claude
+            prompt = (
+                f"Summarize the following text into a short filename (max {max_length} chars). "
+                "Output only the filename without extension, using underscores for spaces. "
+                "Keep it descriptive but concise. Remove special characters.\n\n"
+                f"Text: {text}\n\n"
+                "Filename:"
+            )
+            
+            # Execute claude -p command
+            result = subprocess.run(
+                ["claude", "-p", prompt],
+                capture_output=True,
+                text=True,
+                timeout=5,  # 5 second timeout
+                check=False
+            )
+            
+            if result.returncode == 0 and result.stdout:
+                # Clean and validate the output
+                summary = result.stdout.strip()
+                # Remove any quotes if present
+                summary = summary.strip('"\'')
+                # Ensure it's not too long
+                if len(summary) <= max_length and summary:
+                    logger.debug(f"Successfully summarized with claude: {summary}")
+                    return summary
+            else:
+                logger.debug("claude -p command failed or returned empty result")
+                
+        except FileNotFoundError:
+            logger.debug("claude command not found in PATH")
+        except subprocess.TimeoutExpired:
+            logger.debug("claude -p command timed out")
+        except Exception as e:
+            logger.debug(f"Error using claude -p: {e}")
+        
+        return None
     
     @classmethod
     def _summarize_text(cls, text: str, target_length: int = 40) -> str:
-        """Summarize text meaningfully"""
+        """Summarize text meaningfully (fallback method)"""
         # Sanitize
         text = cls._sanitize_filename(text)
         

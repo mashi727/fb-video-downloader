@@ -7,7 +7,7 @@ A Python package for downloading videos from Facebook with support for various v
 - Download videos from Facebook URLs
 - Automatic quality detection (HD/SD)
 - Metadata extraction (title, uploader, description)
-- Smart filename generation
+- Smart filename generation with claude -p integration for intelligent summarization
 - Progress tracking
 - Fallback to yt-dlp for enhanced compatibility
 - Modular and extensible architecture
