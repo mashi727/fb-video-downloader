@@ -2,13 +2,14 @@
 Data models for Facebook Video Downloader
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 
 class VideoQuality(Enum):
     """Video quality enumeration"""
+
     HD = "HD"
     SD = "SD"
     STANDARD = "標準"
@@ -18,6 +19,7 @@ class VideoQuality(Enum):
 @dataclass
 class VideoInfo:
     """Data class for storing video information"""
+
     url: str
     quality: VideoQuality
     size: Optional[int] = None
@@ -30,15 +32,16 @@ class VideoInfo:
 @dataclass
 class DownloadConfig:
     """Download configuration"""
+
     chunk_size: int = 8192
     timeout: int = 30
     max_retries: int = 3
-    headers: Dict[str, str] = None
-    
-    def __post_init__(self):
-        if self.headers is None:
+    headers: Dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.headers:
             self.headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                            'AppleWebKit/537.36 (KHTML, like Gecko) '
-                            'Chrome/91.0.4472.124 Safari/537.36'
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/91.0.4472.124 Safari/537.36"
             }

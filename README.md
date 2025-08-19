@@ -1,34 +1,44 @@
 # Facebook Video Downloader
 
-A Python package for downloading videos from Facebook with support for various video qualities and metadata extraction.
+A robust Python package for downloading videos from Facebook with intelligent filename generation and comprehensive error handling.
 
-## Features
+## 🌟 Features
 
-- Download videos from Facebook URLs
-- Automatic quality detection (HD/SD)
-- Metadata extraction (title, uploader, description)
-- Smart filename generation with claude -p integration for intelligent summarization
-- Progress tracking
-- Fallback to yt-dlp for enhanced compatibility
-- Modular and extensible architecture
+- 🎥 Download videos from various Facebook URL formats (Watch, Reel, Share, etc.)
+- 📺 Support for HD/SD quality videos with automatic quality detection
+- 🤖 Intelligent filename generation with AI assistance (using claude -p)
+- 🔄 Fallback to yt-dlp for enhanced compatibility
+- 📈 Real-time progress tracking with download speed and ETA
+- 🔒 Robust error handling with retry logic
+- ⚙️ Environment variable configuration support
+- 🧪 Comprehensive test coverage
+- 📦 Modular and extensible architecture
 
-## Installation
+## 💻 Installation
 
-### From GitHub
+### Basic Installation
 
 ```bash
 git clone https://github.com/yourusername/fb-video-downloader.git
 cd fb-video-downloader
 pip install -r requirements.txt
+python setup.py install
 ```
 
-### Using pip (after setup)
+### Development Installation
 
 ```bash
-pip install .
+# Install with all development dependencies
+pip install -e ".[dev,ytdlp]"
 ```
 
-## Usage
+### With yt-dlp Support (Recommended)
+
+```bash
+pip install -e ".[ytdlp]"
+```
+
+## 🚀 Usage
 
 ### Command Line Interface
 
@@ -36,101 +46,106 @@ After installation, you can use the `fbdl` command:
 
 ```bash
 # Basic usage
-fbdl <Facebook_Video_URL>
+fbdl https://www.facebook.com/watch/?v=123456789
 
 # With custom output filename
-fbdl <Facebook_Video_URL> output_video.mp4
+fbdl https://www.facebook.com/watch/?v=123456789 my_video.mp4
 
-# Examples
-fbdl https://www.facebook.com/watch/?v=123456789
+# Various URL formats supported
+fbdl https://www.facebook.com/reel/123456789
 fbdl https://www.facebook.com/share/v/VIDEO_ID/
-fbdl 'https://www.facebook.com/reel/123456789' my_video.mp4
+fbdl https://www.facebook.com/username/videos/987654321
+
+# Direct execution without installation
+python fb_downloader_cli.py <Facebook_Video_URL> [output_filename]
 ```
 
-Alternatively, you can run directly without installation:
-
-```bash
-python fb_downloader_cli.py <Facebook_Video_URL>
-```
-
-### As a Python Module
+### Python API
 
 ```python
-from fb_downloader import Application
-
-app = Application()
-app.run(['fbdl', 'https://www.facebook.com/watch/?v=123456789'])
-```
-
-### Advanced Usage
-
-```python
-from fb_downloader.downloaders import FacebookVideoDownloader
+from fb_downloader.core.application import Application
 from fb_downloader.core.models import DownloadConfig
 
-# Custom configuration
+# Create application instance with custom config
 config = DownloadConfig(
     chunk_size=16384,
     timeout=60,
     max_retries=5
 )
-
-# Create downloader
-downloader = FacebookVideoDownloader(config)
+app = Application()
 
 # Download video
-success = downloader.download(
-    url='https://www.facebook.com/watch/?v=123456789',
-    output_path='my_video.mp4'
-)
+result = app.run(['fbdl', 'https://www.facebook.com/watch/?v=123456789'])
+
+# Using specific downloader
+from fb_downloader.downloaders.facebook import FacebookVideoDownloader
+
+downloader = FacebookVideoDownloader(config)
+success = downloader.download('https://www.facebook.com/watch/?v=123456789')
 ```
 
-## Project Structure
+## 🤖 Intelligent Filename Generation
+
+The package features smart filename generation:
+
+1. **AI-Powered** (with claude -p): Automatically generates concise, meaningful filenames
+2. **Smart Fallback**: Uses local summarization algorithm when claude is unavailable
+3. **Safety**: Sanitizes filenames to be filesystem-safe across all platforms
+
+Example outputs:
+- Video titled "Amazing sunset at Mount Fuji" → `20240101_富士山_夕焼け.mp4`
+- Video from user "TechNews" → `20240101_TechNews_latest_update.mp4`
+- Video without metadata → `20240101_fb_video_123456.mp4`
+
+## 📁 Project Structure
 
 ```
 fb-video-downloader/
 ├── src/
 │   └── fb_downloader/
-│       ├── core/           # Core components
-│       │   ├── application.py
-│       │   ├── exceptions.py
-│       │   └── models.py
-│       ├── extractors/      # Video extractors
-│       │   ├── base.py
-│       │   └── facebook.py
-│       ├── downloaders/     # Download implementations
-│       │   ├── base.py
-│       │   ├── facebook.py
-│       │   └── ytdlp.py
-│       └── utils/           # Utilities
-│           ├── filename.py
-│           ├── progress.py
-│           └── validator.py
-├── config/                  # Configuration files
-│   └── settings.yaml
-├── tests/                   # Test files
-├── docs/                    # Documentation
-├── requirements.txt
-├── setup.py
-└── README.md
+│       ├── core/           # Core application logic
+│       ├── downloaders/    # Video downloader implementations
+│       ├── extractors/     # Video URL extractors
+│       └── utils/          # Utility modules
+├── tests/                  # Test suite
+├── config/                 # Configuration files
+└── docs/                   # Documentation
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-The application can be configured via the `config/settings.yaml` file:
+### Environment Variables
+
+Configure via environment variables:
+
+```bash
+export FBDL_CHUNK_SIZE=16384        # Download chunk size in bytes
+export FBDL_TIMEOUT=60              # Request timeout in seconds
+export FBDL_MAX_RETRIES=5           # Maximum retry attempts
+export FBDL_LOG_LEVEL=DEBUG         # Logging level
+export FBDL_OUTPUT_DIR=/downloads   # Default output directory
+```
+
+### Configuration File
+
+Or modify `config/settings.yaml`:
 
 ```yaml
 download:
-  chunk_size: 8192
-  timeout: 30
-  max_retries: 3
+  chunk_size: 16384
+  timeout: 60
+  max_retries: 5
 
 headers:
-  User-Agent: "Mozilla/5.0..."
+  user_agent: "Mozilla/5.0..."
 
 logging:
   level: INFO
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+output:
+  directory: "."
+  max_filename_length: 100
 ```
 
 ## Requirements
@@ -140,12 +155,29 @@ logging:
 - PyYAML
 - yt-dlp (optional, for enhanced compatibility)
 
-## Development
+## 🔧 Development
 
 ### Running Tests
 
 ```bash
-python -m pytest tests/
+# Run all tests
+PYTHONPATH=src python -m pytest tests/ -v
+
+# Run with coverage
+python -m pytest tests/ -v --cov=fb_downloader --cov-report=term-missing
+```
+
+### Code Quality
+
+```bash
+# Format code
+black src/ tests/ --line-length 100
+
+# Check style
+flake8 src/ tests/ --max-line-length=100
+
+# Type checking
+mypy src/fb_downloader
 ```
 
 ### Contributing
@@ -170,7 +202,18 @@ Only download videos that you own or have explicit permission to download.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Troubleshooting
+## 🔍 Error Handling
+
+The package includes comprehensive error handling:
+
+- `VideoNotFoundError`: Raised when video cannot be found
+- `NetworkError`: Network-related issues with status codes
+- `ExtractionError`: Video extraction failures
+- `ValidationError`: URL validation errors
+
+All errors include detailed messages and context for debugging.
+
+## 📝 Troubleshooting
 
 ### Common Issues
 
@@ -180,7 +223,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ### Debug Mode
 
-Enable debug logging by modifying the logging level:
+Enable debug logging:
+
+```bash
+export FBDL_LOG_LEVEL=DEBUG
+```
+
+Or in Python:
 
 ```python
 import logging

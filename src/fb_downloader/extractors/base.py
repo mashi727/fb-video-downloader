@@ -10,7 +10,7 @@ from ..core.models import VideoInfo
 
 class VideoExtractor(ABC):
     """Abstract base class for video URL extraction"""
-    
+
     @abstractmethod
     def extract(self, html_content: str) -> Optional[VideoInfo]:
         """Extract video information from HTML content"""

@@ -81,4 +81,4 @@ check_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --cov=fb_downloader --cov-report=term-missing"
+addopts = "-v"

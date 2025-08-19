@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 class FileNameGenerator:
     """Filename generation class"""
-    
+
     MAX_FILENAME_LENGTH = 100  # Maximum filename length (considering byte length)
     IDEAL_LENGTH = 50  # Ideal length for Japanese filenames
-    
+
     @classmethod
     def generate(cls, video_info: Optional[VideoInfo] = None) -> str:
         """Generate filename based on video information"""
@@ -27,13 +27,13 @@ class FileNameGenerator:
             # If no video info, use timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             return f"fb_video_{timestamp}.mp4"
-        
+
         # Date
         date_str = datetime.now().strftime("%Y%m%d")
-        
+
         # Main content summary
         content_summary = cls._create_content_summary(video_info)
-        
+
         if content_summary:
             # Combine date and content summary
             if video_info.uploader:
@@ -51,16 +51,18 @@ class FileNameGenerator:
             else:
                 timestamp = datetime.now().strftime("%H%M%S")
                 filename = f"{date_str}_fb_video_{timestamp}"
-        
+
         # Adjust length
         if len(filename) > cls.MAX_FILENAME_LENGTH:
             # Truncate and add ID
-            base = filename[:cls.MAX_FILENAME_LENGTH - 10]
-            id_suffix = video_info.video_id[:6] if video_info.video_id else datetime.now().strftime("%H%M")
+            base = filename[: cls.MAX_FILENAME_LENGTH - 10]
+            id_suffix = (
+                video_info.video_id[:6] if video_info.video_id else datetime.now().strftime("%H%M")
+            )
             filename = f"{base}_{id_suffix}"
-        
+
         return f"{filename}.mp4"
-    
+
     @classmethod
     def _create_content_summary(cls, video_info: VideoInfo) -> str:
         """Create video content summary using claude -p if available"""
@@ -72,15 +74,15 @@ class FileNameGenerator:
             text_to_summarize = video_info.description
         else:
             return ""
-        
+
         # Try to use claude -p for summarization
         summarized = cls._summarize_with_claude(text_to_summarize, max_length=cls.IDEAL_LENGTH)
         if summarized:
             return cls._sanitize_filename(summarized)
-        
+
         # Fallback to local summarization
         return cls._summarize_text(text_to_summarize, target_length=40)
-    
+
     @classmethod
     def _summarize_with_claude(cls, text: str, max_length: int = 50) -> Optional[str]:
         """Summarize text using claude -p command"""
@@ -91,13 +93,14 @@ class FileNameGenerator:
                 f"要件：\n"
                 f"- 日本語で簡潔に要約（最大{max_length//2}文字程度）\n"
                 f"- スペースの代わりにアンダースコア（_）を使用\n"
+                f"- 使用可能な記号はハイフン（-）とアンダースコア（_）のみ\n"
                 f"- 拡張子は不要\n"
                 f"- 内容が分かるように要点を残す\n"
                 f"- 日本語が適切でない場合のみ英語を使用\n\n"
                 f"テキスト: {text}\n\n"
                 f"ファイル名のみを出力:"
             )
-            
+
             # Execute claude command with prompt via stdin
             result = subprocess.run(
                 ["claude", "-p"],
@@ -105,19 +108,19 @@ class FileNameGenerator:
                 capture_output=True,
                 text=True,
                 timeout=10,  # 10 second timeout
-                check=False
+                check=False,
             )
-            
+
             if result.returncode == 0 and result.stdout:
                 # Clean and validate the output
                 # Get the last non-empty line (claude might output multiple lines)
-                lines = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+                lines = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
                 if lines:
                     summary = lines[-1]  # Take the last line as the filename
                     # Remove any quotes if present
-                    summary = summary.strip('"\'')
+                    summary = summary.strip("\"'")
                     # Remove any file extensions if accidentally included
-                    summary = summary.replace('.mp4', '').replace('.MP4', '')
+                    summary = summary.replace(".mp4", "").replace(".MP4", "")
                     # Ensure it's not too long
                     if len(summary) <= max_length and summary:
                         print(f"📝 Using claude -p for filename: {summary}")
@@ -127,51 +130,87 @@ class FileNameGenerator:
                 logger.info(f"claude -p command failed with return code {result.returncode}")
                 if result.stderr:
                     logger.debug(f"stderr: {result.stderr}")
-                
+
         except FileNotFoundError:
             logger.debug("claude command not found in PATH")
         except subprocess.TimeoutExpired:
             logger.debug("claude -p command timed out")
         except Exception as e:
             logger.debug(f"Error using claude -p: {e}")
-        
+
         return None
-    
+
     @classmethod
     def _summarize_text(cls, text: str, target_length: int = 40) -> str:
         """Summarize text meaningfully (fallback method)"""
         # Sanitize
         text = cls._sanitize_filename(text)
-        
+
         # Check for Japanese characters
         has_japanese = any(ord(char) > 0x3000 for char in text)
-        
+
         if has_japanese:
             # For Japanese: consider particles
-            parts = re.split(r'[。、！？\s]+', text)
+            parts = re.split(r"[。、！？\s]+", text)
             summary = parts[0] if parts else text
-            
+
             # Truncate if too long
             if len(summary) > target_length:
                 summary = summary[:target_length]
                 # Remove trailing particles
-                particles = 'をにがのでとはも'
+                particles = "をにがのでとはも"
                 while summary and summary[-1] in particles:
                     summary = summary[:-1]
         else:
             # For English: keep important words
-            stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-                         'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
-                         'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-                         'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those'}
-            
+            stop_words = {
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "but",
+                "in",
+                "on",
+                "at",
+                "to",
+                "for",
+                "of",
+                "with",
+                "by",
+                "from",
+                "as",
+                "is",
+                "was",
+                "are",
+                "were",
+                "be",
+                "have",
+                "has",
+                "had",
+                "do",
+                "does",
+                "did",
+                "will",
+                "would",
+                "could",
+                "should",
+                "may",
+                "might",
+                "can",
+                "this",
+                "that",
+                "these",
+                "those",
+            }
+
             # Split into words
-            words = text.split('_')
-            
+            words = text.split("_")
+
             # Select important words
             important_words = []
             current_length = 0
-            
+
             for word in words:
                 if word.lower() not in stop_words or len(important_words) == 0:
                     if current_length + len(word) + len(important_words) <= target_length:
@@ -179,29 +218,37 @@ class FileNameGenerator:
                         current_length += len(word)
                     else:
                         break
-            
-            summary = '_'.join(important_words) if important_words else text[:target_length]
-        
+
+            summary = "_".join(important_words) if important_words else text[:target_length]
+
         return summary
-    
+
     @staticmethod
     def _sanitize_filename(text: str) -> str:
-        """Convert to string usable as filename"""
+        """Convert to string usable as filename (only - and _ allowed as symbols)"""
         # Unicode normalization
-        text = unicodedata.normalize('NFKC', text)
+        text = unicodedata.normalize("NFKC", text)
+
+        # First, replace spaces and common separators with underscore
+        text = re.sub(r"[\s,;:：、。！？・]+", "_", text)
         
-        # Remove or replace invalid characters
-        invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
-        text = re.sub(invalid_chars, '', text)
+        # Keep only alphanumeric characters (including Japanese), hyphen, and underscore
+        # This regex keeps: letters, numbers, Japanese characters, hyphen, and underscore
+        text = re.sub(r"[^\w\-ー－]", "", text, flags=re.UNICODE)
         
-        # Collapse consecutive spaces/underscores
-        text = re.sub(r'[\s_]+', '_', text)
+        # Replace full-width hyphen with half-width
+        text = text.replace("－", "-").replace("ー", "-")
         
-        # Remove leading/trailing spaces and symbols
-        text = text.strip(' ._-')
-        
-        # If empty string
+        # Collapse consecutive underscores or hyphens
+        text = re.sub(r"_+", "_", text)
+        text = re.sub(r"-+", "-", text)
+        text = re.sub(r"(-_|_-)+", "_", text)  # Mix of - and _ becomes _
+
+        # Remove leading/trailing underscores and hyphens
+        text = text.strip("_-")
+
+        # If empty string after sanitization
         if not text:
             return ""
-        
+
         return text
