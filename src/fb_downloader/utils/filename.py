@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 class FileNameGenerator:
     """Filename generation class"""
     
-    MAX_FILENAME_LENGTH = 100  # Maximum filename length
-    IDEAL_LENGTH = 60  # Ideal length
+    MAX_FILENAME_LENGTH = 100  # Maximum filename length (considering byte length)
+    IDEAL_LENGTH = 50  # Ideal length for Japanese filenames
     
     @classmethod
     def generate(cls, video_info: Optional[VideoInfo] = None) -> str:
@@ -74,7 +74,7 @@ class FileNameGenerator:
             return ""
         
         # Try to use claude -p for summarization
-        summarized = cls._summarize_with_claude(text_to_summarize)
+        summarized = cls._summarize_with_claude(text_to_summarize, max_length=cls.IDEAL_LENGTH)
         if summarized:
             return cls._sanitize_filename(summarized)
         
@@ -82,17 +82,20 @@ class FileNameGenerator:
         return cls._summarize_text(text_to_summarize, target_length=40)
     
     @classmethod
-    def _summarize_with_claude(cls, text: str, max_length: int = 60) -> Optional[str]:
+    def _summarize_with_claude(cls, text: str, max_length: int = 50) -> Optional[str]:
         """Summarize text using claude -p command"""
         try:
             # Create prompt for claude
             prompt = (
-                f"You are creating a filename from the following text. "
-                f"Create a short, descriptive filename (max {max_length} chars). "
-                f"Use underscores for spaces. No file extension. "
-                f"Be concise but keep the main topic clear.\n\n"
-                f"Text: {text}\n\n"
-                f"Output only the filename, nothing else:"
+                f"以下のテキストからファイル名を作成してください。\n"
+                f"要件：\n"
+                f"- 日本語で簡潔に要約（最大{max_length//2}文字程度）\n"
+                f"- スペースの代わりにアンダースコア（_）を使用\n"
+                f"- 拡張子は不要\n"
+                f"- 内容が分かるように要点を残す\n"
+                f"- 日本語が適切でない場合のみ英語を使用\n\n"
+                f"テキスト: {text}\n\n"
+                f"ファイル名のみを出力:"
             )
             
             # Execute claude command with prompt via stdin
