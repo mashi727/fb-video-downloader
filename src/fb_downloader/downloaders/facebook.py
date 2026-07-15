@@ -12,7 +12,7 @@ from requests.exceptions import RequestException, HTTPError, Timeout, Connection
 
 from .base import BaseDownloader
 from ..core.exceptions import VideoNotFoundError, NetworkError, ExtractionError
-from ..core.models import DownloadConfig, VideoInfo
+from ..core.models import DownloadConfig, DownloadOptions, VideoInfo
 from ..extractors.facebook import FacebookVideoExtractor
 from ..utils.progress import ProgressTracker
 
@@ -26,8 +26,13 @@ class FacebookVideoDownloader(BaseDownloader):
         super().__init__(config or DownloadConfig())
         self.extractor = FacebookVideoExtractor()
 
-    def download(self, url: str, output_path: Optional[Path] = None) -> bool:
-        """Download Facebook video"""
+    def download(
+        self,
+        url: str,
+        output_path: Optional[Path] = None,
+        options: Optional[DownloadOptions] = None,
+    ) -> bool:
+        """Download Facebook video (options are yt-dlp only; ignored here)"""
         try:
             # Fetch page
             logger.info(f"Fetching page: {url}")
@@ -47,6 +52,10 @@ class FacebookVideoDownloader(BaseDownloader):
 
             logger.info(f"✓ Download complete: {output_path}")
             logger.info(f"  File size: {output_path.stat().st_size:,} bytes")
+
+            # Save description as text file
+            self._save_description(output_path, video_info)
+
             return True
 
         except (VideoNotFoundError, NetworkError) as e:

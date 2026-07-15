@@ -48,9 +48,20 @@ class TestURLValidator:
             assert not URLValidator.validate(url, interactive=False)
 
     def test_validate_non_facebook_url(self):
-        url = "https://www.youtube.com/watch?v=123"
-        # With interactive=False, should return False for non-Facebook URLs
+        # A genuinely unsupported host (YouTube is now supported)
+        url = "https://vimeo.com/123456789"
+        # With interactive=False, should return False for unsupported URLs
         assert not URLValidator.validate(url, interactive=False)
+
+    def test_validate_youtube_url(self):
+        # YouTube is a supported target (yt-dlp path)
+        urls = [
+            "https://www.youtube.com/watch?v=123",
+            "https://youtu.be/aGrPHngtho8",
+            "https://music.youtube.com/watch?v=123",
+        ]
+        for url in urls:
+            assert URLValidator.validate(url, interactive=False)
 
     def test_extract_video_id_watch(self):
         url = "https://www.facebook.com/watch/?v=123456789"

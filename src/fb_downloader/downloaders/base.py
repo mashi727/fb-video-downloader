@@ -2,14 +2,17 @@
 Base downloader class
 """
 
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
 from requests import Session
 
-from ..core.models import DownloadConfig, VideoInfo
+from ..core.models import DownloadConfig, DownloadOptions, VideoInfo
 from ..utils.filename import FileNameGenerator
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDownloader(ABC):
@@ -26,10 +29,38 @@ class BaseDownloader(ABC):
         return session
 
     @abstractmethod
-    def download(self, url: str, output_path: Optional[Path] = None) -> bool:
+    def download(
+        self,
+        url: str,
+        output_path: Optional[Path] = None,
+        options: Optional[DownloadOptions] = None,
+    ) -> bool:
         """Download video"""
         pass
 
     def _generate_filename(self, video_info: Optional[VideoInfo] = None) -> str:
         """Auto-generate filename"""
         return FileNameGenerator.generate(video_info)
+
+    @staticmethod
+    def _save_description(output_path: Path, video_info: Optional[VideoInfo]) -> None:
+        """Save video description as a text file with the same base name"""
+        if video_info is None:
+            logger.debug("No video_info available, skipping description save")
+            return
+
+        if not video_info.description:
+            logger.info("No description found for this video")
+            return
+
+        description = video_info.description.strip()
+        if not description:
+            logger.info("Description is empty")
+            return
+
+        txt_path = output_path.with_suffix(".txt")
+        try:
+            txt_path.write_text(description, encoding="utf-8")
+            logger.info(f"✓ Description saved: {txt_path}")
+        except OSError as e:
+            logger.warning(f"Failed to save description: {e}")

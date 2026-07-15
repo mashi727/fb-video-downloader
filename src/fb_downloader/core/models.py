@@ -30,6 +30,16 @@ class VideoInfo:
 
 
 @dataclass
+class DownloadOptions:
+    """Per-invocation download options (yt-dlp features)"""
+
+    audio_only: bool = False
+    subtitles: bool = False
+    sub_lang: str = "ja"
+    srt_only: bool = False
+
+
+@dataclass
 class DownloadConfig:
     """Download configuration"""
 

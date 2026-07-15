@@ -15,12 +15,18 @@ logger = logging.getLogger(__name__)
 class URLValidator:
     """URL validation class"""
 
-    FACEBOOK_DOMAINS: List[str] = [
+    SUPPORTED_DOMAINS: List[str] = [
         "facebook.com",
         "fb.watch",
         "fb.com",
         "facebook.fr",
         "facebook.de",
+        "instagram.com",
+        "www.instagram.com",
+        "youtube.com",
+        "youtu.be",
+        "m.youtube.com",
+        "music.youtube.com",
     ]
 
     @classmethod
@@ -57,14 +63,19 @@ class URLValidator:
             logger.error(f"Failed to parse URL: {e}")
             return False
 
-        if not any(domain in parsed.netloc for domain in cls.FACEBOOK_DOMAINS):
-            logger.warning("This may not be a Facebook URL")
+        if not any(domain in parsed.netloc for domain in cls.SUPPORTED_DOMAINS):
+            logger.warning("This may not be a supported URL (Facebook/Instagram/YouTube)")
             if interactive:
-                response = input("Continue? (y/n): ")
+                try:
+                    response = input("Continue? (y/n): ")
+                except EOFError:
+                    # Non-interactive stdin (piped/batch): don't crash, reject
+                    logger.error("No input available; treating unsupported URL as rejected")
+                    return False
                 if response.lower() != "y":
                     return False
             else:
-                return False  # Non-interactive mode: reject non-Facebook URLs
+                return False  # Non-interactive mode: reject unsupported URLs
 
         return True
 
