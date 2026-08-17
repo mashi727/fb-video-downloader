@@ -32,11 +32,42 @@ python setup.py install
 pip install -e ".[dev,ytdlp]"
 ```
 
-### With yt-dlp Support (Recommended)
+### With yt-dlp Support (Required for Facebook)
 
 ```bash
 pip install -e ".[ytdlp]"
 ```
+
+This pulls in `yt-dlp` **and** `curl_cffi`. Facebook only returns video data to
+clients with a browser-like TLS fingerprint, so `curl_cffi` (TLS impersonation)
+is required for reels and watch pages. Keep yt-dlp current:
+
+```bash
+pip install -U --pre yt-dlp
+```
+
+### Platform notes
+
+Runs on macOS, Linux and Windows (Python 3.8+). `ffmpeg` must be on PATH — every
+mode uses it to merge or convert streams.
+
+**Ubuntu / Debian**
+
+```bash
+sudo apt install -y ffmpeg python3-venv python3-pip
+python3 -m venv ~/.venvs/fbdl && source ~/.venvs/fbdl/bin/activate
+pip install -e ".[ytdlp]"
+```
+
+Cookies are read from the browser installed on the machine. On Linux, Firefox is
+tried first: Chrome/Chromium store their cookie key in the GNOME keyring or
+KWallet, which is unreachable over SSH or on a headless server, while Firefox's
+`cookies.sqlite` can be read directly. If the machine has no browser session
+(server, container), export cookies elsewhere and place them where yt-dlp can
+find them, or run fbdl on the desktop machine.
+
+Filename generation calls the optional `claude` CLI; without it, fbdl falls back
+to local summarization automatically.
 
 ## 🚀 Usage
 
@@ -56,9 +87,32 @@ fbdl https://www.facebook.com/reel/123456789
 fbdl https://www.facebook.com/share/v/VIDEO_ID/
 fbdl https://www.facebook.com/username/videos/987654321
 
+# Audio / subtitle modes
+fbdl 'https://youtu.be/VIDEO_ID' -a           # audio only (m4a)
+fbdl 'https://youtu.be/VIDEO_ID' --subs       # video + SRT subtitles
+fbdl 'https://youtu.be/VIDEO_ID' -S           # subtitles only
+
+# Choose where login cookies come from (default: auto-detect)
+fbdl 'https://www.facebook.com/reel/123456789' --browser chrome
+fbdl 'https://youtu.be/VIDEO_ID' --browser none
+
 # Direct execution without installation
 python fb_downloader_cli.py <Facebook_Video_URL> [output_filename]
 ```
+
+### How a download is attempted
+
+For each URL, fbdl escalates through up to four strategies and stops at the
+first success:
+
+1. browser cookies + TLS impersonation (what Facebook reels require)
+2. browser cookies only
+3. TLS impersonation only
+4. plain request
+
+Cookies are taken from the first browser that holds a live session for the
+target site (`c_user` for Facebook, `sessionid` for Instagram), extracted once
+per run into a private temporary file that is deleted on exit.
 
 ### Python API
 
@@ -86,16 +140,49 @@ success = downloader.download('https://www.facebook.com/watch/?v=123456789')
 
 ## 🤖 Intelligent Filename Generation
 
-The package features smart filename generation:
+Files are named `YYYYMMDD_<subject of the video>` — the date it was downloaded
+plus what the video is actually about. The account name is not part of the name.
 
-1. **AI-Powered** (with claude -p): Automatically generates concise, meaningful filenames
-2. **Smart Fallback**: Uses local summarization algorithm when claude is unavailable
-3. **Safety**: Sanitizes filenames to be filesystem-safe across all platforms
+The subject comes from the **post body**, since Instagram and Facebook give every
+video a placeholder title ("Video by xxx", "…の動画"). Resolution order:
 
-Example outputs:
-- Video titled "Amazing sunset at Mount Fuji" → `20240101_富士山_夕焼け.mp4`
-- Video from user "TechNews" → `20240101_TechNews_latest_update.mp4`
-- Video without metadata → `20240101_fb_video_123456.mp4`
+1. **A title the author declared** on a line of its own in `『』` or `【】`, kept
+   verbatim including emoji — `『焼きシーザーサラダ🥬』` → `20260817_焼きシーザーサラダ🥬.mp4`
+2. **`claude -p`**, asked for the subject of the post while ignoring the
+   self-introduction, follow prompts, ingredients and steps — a body describing
+   a cold dandan noodle recipe → `20260817_ピリ辛冷やし坦々そうめん.mp4`
+3. **The platform title**, when it is not a placeholder (YouTube, for instance)
+4. **Local summarization**, when `claude` is unavailable — the first line of the
+   body that is not follow/save boilerplate
+
+The description is saved alongside as `.txt` with the same base name. When two
+videos resolve to the same name, `_2`, `_3` … is appended rather than
+overwriting.
+
+### Renaming older downloads
+
+`fbdl-rename` applies the same naming to files that are already on disk, reading
+the subject from the `.txt` saved next to each video. One command covers the
+current folder and everything below it:
+
+```bash
+fbdl-rename                              # rename here, recursively
+fbdl-rename -n                           # preview, change nothing
+fbdl-rename ~/Movies ~/Desktop           # rename the given trees
+fbdl-rename --undo .fbdl-rename-undo.json
+```
+
+- The video, its `.txt` and its `_yt.srt` are renamed together
+- The existing `YYYYMMDD_` prefix is kept — that is the day fbdl downloaded it,
+  and it is not replaced with today's date
+- Only files starting with `YYYYMMDD_` are touched, so unrelated video
+  collections that happen to keep a same-named `.txt` are left alone (`--all`
+  lifts this)
+- Every run writes `.fbdl-rename-undo.json` before renaming, so `--undo` can put
+  the old names back
+- `--no-claude` stays offline and uses only titles the post declares in `『』`/`【】`
+
+Set `FBDL_CLAUDE_BIN` if the `claude` CLI is installed somewhere not on `PATH`.
 
 ## 📁 Project Structure
 
@@ -220,6 +307,15 @@ All errors include detailed messages and context for debugging.
 1. **Video not found**: The video might be private or the URL format has changed
 2. **Network errors**: Check your internet connection and proxy settings
 3. **yt-dlp not installed**: Install with `pip install yt-dlp` for better compatibility
+4. **Facebook: "Cannot parse data"**: Facebook needs both a logged-in session
+   and a browser TLS fingerprint. Check, in order:
+   - `pip install "curl_cffi>=0.5.10"` (TLS impersonation)
+   - Log in to Facebook in Safari or Chrome; on macOS the terminal needs
+     Full Disk Access to read Safari cookies
+   - Force a specific browser with `--browser chrome`, or skip cookies with
+     `--browser none`
+   - `pip install -U --pre yt-dlp` (extractors break whenever Facebook ships
+     a change)
 
 ### Debug Mode
 

@@ -45,7 +45,7 @@ class FacebookVideoDownloader(BaseDownloader):
 
             # Determine filename
             if output_path is None:
-                output_path = Path(self._generate_filename(video_info))
+                output_path = self._ensure_unique_path(Path(self._generate_filename(video_info)))
 
             # Execute download
             self._download_video(video_info, output_path)

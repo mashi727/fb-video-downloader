@@ -30,7 +30,6 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
@@ -39,7 +38,7 @@ setup(
     ],
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=[
         "requests>=2.31.0",
         "PyYAML>=6.0",
@@ -57,6 +56,7 @@ setup(
     entry_points={
         "console_scripts": [
             "fbdl=fb_downloader.core.application:main",
+            "fbdl-rename=fb_downloader.tools.rename:main",
         ],
     },
     include_package_data=True,

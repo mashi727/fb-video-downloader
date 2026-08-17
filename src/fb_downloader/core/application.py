@@ -6,6 +6,7 @@ import re
 import sys
 import logging
 import argparse
+import importlib.util
 from pathlib import Path
 from typing import List, Optional
 
@@ -38,6 +39,7 @@ class Application:
             subtitles=ns.subs or ns.srt_only,
             sub_lang=ns.sub_lang,
             srt_only=ns.srt_only,
+            cookie_browser=ns.browser,
         )
 
         self._show_header()
@@ -78,10 +80,15 @@ class Application:
         if options.audio_only or options.subtitles or options.srt_only or is_playlist:
             return self._try_ytdlp(video_url, output_path, options, fallback=False)
 
-        success = self.fb_downloader.download(video_url, output_path, options)
-        if not success:
-            success = self._try_ytdlp(video_url, output_path, options)
-        return success
+        # yt-dlp carries the browser session and understands today's Facebook
+        # pages; the built-in scraper only handles legacy public pages, so it
+        # is the fallback rather than the first attempt.
+        if self._ytdlp_available():
+            if self._try_ytdlp(video_url, output_path, options, fallback=False):
+                return True
+            logger.info("yt-dlp failed, trying the built-in downloader...")
+
+        return self.fb_downloader.download(video_url, output_path, options)
 
     def _run_batch(self, txt_path: Path, options: DownloadOptions) -> int:
         """Download every URL listed in a text file (one per line)"""
@@ -94,14 +101,15 @@ class Application:
         logger.info(f"Batch mode: {total} URL(s) from {txt_path}")
 
         success_count = 0
-        for index, raw_url in enumerate(urls, 1):
-            video_url = URLValidator.clean_url(raw_url)
+        failed: List[str] = []
+        for index, video_url in enumerate(urls, 1):
             print("\n" + "=" * 50)
             print(f"[{index}/{total}] {video_url}")
             print("=" * 50)
 
-            if not URLValidator.validate(video_url):
-                logger.warning(f"Skipped (invalid URL): {raw_url}")
+            if not URLValidator.validate(video_url, interactive=False):
+                logger.warning(f"Skipped (unsupported URL): {video_url}")
+                failed.append(video_url)
                 continue
 
             try:
@@ -109,27 +117,54 @@ class Application:
                     success_count += 1
                 else:
                     logger.warning(f"Failed: {video_url}")
+                    failed.append(video_url)
             except Exception as e:
                 # One bad URL must not abort the whole batch
                 logger.warning(f"Failed: {video_url} ({e})")
+                failed.append(video_url)
 
         print("\n" + "=" * 50)
         logger.info(f"Batch complete: {success_count}/{total} succeeded")
+        if failed:
+            # Printed as a block so the list can be pasted back in for a retry
+            logger.warning(f"{len(failed)} URL(s) failed:")
+            for url in failed:
+                print(f"  {url}")
         print("=" * 50)
         return 0 if success_count > 0 else 1
 
     @staticmethod
     def _read_url_list(txt_path: Path) -> List[str]:
-        """Extract URLs from a text file, skipping blanks and # comments"""
+        """Extract URLs from a text file, in order and without duplicates.
+
+        Lines carrying no URL (blank lines, '#' comments, free-text labels the
+        user wrote between links) are ignored, so a hand-kept memo file works
+        as a batch list as-is.
+        """
         urls: List[str] = []
+        seen = set()
+        duplicates = 0
+
         for line in txt_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
+            match = re.search(r"https?://\S+", line.strip())
+            if not match:
                 continue
-            match = re.search(r"https?://\S+", line)
-            if match:
-                urls.append(match.group(0))
+
+            url = URLValidator.clean_url(match.group(0))
+            if url in seen:
+                duplicates += 1
+                continue
+            seen.add(url)
+            urls.append(url)
+
+        if duplicates:
+            logger.info(f"Skipped {duplicates} duplicate URL(s)")
         return urls
+
+    @staticmethod
+    def _ytdlp_available() -> bool:
+        """Whether yt-dlp can be imported"""
+        return importlib.util.find_spec("yt_dlp") is not None
 
     def _try_ytdlp(
         self,
@@ -172,12 +207,8 @@ class Application:
         )
         parser.add_argument("url", help="Video URL")
         parser.add_argument("output", nargs="?", help="Output filename (optional)")
-        parser.add_argument(
-            "-a", "--audio", action="store_true", help="Download audio only (m4a)"
-        )
-        parser.add_argument(
-            "--subs", action="store_true", help="Also download subtitles (SRT)"
-        )
+        parser.add_argument("-a", "--audio", action="store_true", help="Download audio only (m4a)")
+        parser.add_argument("--subs", action="store_true", help="Also download subtitles (SRT)")
         parser.add_argument(
             "-S",
             "--srt-only",
@@ -190,6 +221,15 @@ class Application:
             dest="sub_lang",
             default="ja",
             help="Subtitle language (default: ja)",
+        )
+        parser.add_argument(
+            "--browser",
+            choices=["safari", "chrome", "firefox", "edge", "brave", "chromium", "none"],
+            default=None,
+            help=(
+                "Browser to take login cookies from "
+                "(default: auto-detect; 'none' disables cookies)"
+            ),
         )
         return parser
 

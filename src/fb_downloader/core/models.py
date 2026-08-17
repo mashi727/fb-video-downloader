@@ -37,6 +37,8 @@ class DownloadOptions:
     subtitles: bool = False
     sub_lang: str = "ja"
     srt_only: bool = False
+    # Browser to take cookies from; None = auto-detect, "none" = no cookies
+    cookie_browser: Optional[str] = None
 
 
 @dataclass

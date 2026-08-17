@@ -5,7 +5,7 @@ URL validation utility
 import re
 import logging
 from typing import List, Tuple
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit, parse_qsl, urlencode
 
 from ..core.exceptions import ValidationError
 
@@ -14,6 +14,12 @@ logger = logging.getLogger(__name__)
 
 class URLValidator:
     """URL validation class"""
+
+    # Share/analytics parameters that carry no routing information. Removing
+    # them lets the same video pasted from different apps deduplicate.
+    TRACKING_PARAMS: frozenset = frozenset(
+        {"igsh", "igshid", "mibextid", "fbclid", "si", "share_url", "rdid"}
+    )
 
     SUPPORTED_DOMAINS: List[str] = [
         "facebook.com",
@@ -39,9 +45,28 @@ class URLValidator:
         url = url.replace("\\", "")
         # Fix duplicate slashes
         url = re.sub(r"([^:])//+", r"\1/", url)
+        # Drop share/analytics parameters (?igsh=, ?mibextid=, ...)
+        url = cls._strip_tracking_params(url)
         # Remove trailing slashes
         url = url.rstrip("/")
         return url
+
+    @classmethod
+    def _strip_tracking_params(cls, url: str) -> str:
+        """Remove share-tracking query parameters, keeping routing ones intact"""
+        parts = urlsplit(url)
+        if not parts.query:
+            return url
+
+        kept = [
+            (key, value)
+            for key, value in parse_qsl(parts.query, keep_blank_values=True)
+            if key.lower() not in cls.TRACKING_PARAMS and not key.lower().startswith("utm_")
+        ]
+        if len(kept) == len(parse_qsl(parts.query, keep_blank_values=True)):
+            return url
+
+        return urlunsplit(parts._replace(query=urlencode(kept)))
 
     @classmethod
     def validate(cls, url: str, interactive: bool = True) -> bool:

@@ -161,3 +161,9 @@ downloads/
 # Config files with sensitive data
 config/local_settings.yaml
 config/*.local.yaml
+
+# Worklog (session handoff notes, not part of the codebase)
+worklog/
+
+# Personal batch lists (URLs of saved posts)
+urls.txt

@@ -11,7 +11,7 @@ authors = [
 description = "A Python package for downloading videos from Facebook"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -20,7 +20,6 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -33,7 +32,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ytdlp = ["yt-dlp>=2023.10.13"]
+# curl_cffi provides the browser TLS fingerprint that Facebook now requires
+ytdlp = ["yt-dlp>=2024.4.9", "curl_cffi>=0.5.10"]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -49,6 +49,7 @@ Documentation = "https://github.com/yourusername/fb-video-downloader#readme"
 
 [project.scripts]
 fbdl = "fb_downloader.core.application:main"
+fbdl-rename = "fb_downloader.tools.rename:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -58,7 +59,7 @@ fb_downloader = ["../config/*.yaml"]
 
 [tool.black]
 line-length = 100
-target-version = ['py37', 'py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311']
 include = '\.pyi?$'
 
 [tool.flake8]
@@ -67,7 +68,7 @@ extend-ignore = ["E203", "W503"]
 exclude = [".git", "__pycache__", "dist", "build", "*.egg"]
 
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
