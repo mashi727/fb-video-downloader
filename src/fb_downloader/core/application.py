@@ -46,7 +46,17 @@ class Application:
 
         # Batch mode: a .txt file with one URL per line
         url_arg = Path(ns.url)
-        if url_arg.suffix.lower() == ".txt" and url_arg.is_file():
+        looks_like_batch = url_arg.suffix.lower() == ".txt" and not ns.url.startswith(
+            ("http://", "https://")
+        )
+        if looks_like_batch:
+            if not url_arg.is_file():
+                # Falling through to URL validation here would report
+                # "must start with http://", which reads as if batch files
+                # were unsupported rather than simply missing.
+                logger.error(f"Batch file not found: {ns.url}")
+                logger.info(f"  Looked in: {Path.cwd()}")
+                return 1
             if ns.output:
                 logger.warning("Output filename is ignored in batch mode")
             return self._run_batch(url_arg, options)
