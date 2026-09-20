@@ -143,8 +143,15 @@ success = downloader.download('https://www.facebook.com/watch/?v=123456789')
 Files are named `YYYYMMDD_<subject of the video>` — the date it was downloaded
 plus what the video is actually about. The account name is not part of the name.
 
-The subject comes from the **post body**, since Instagram and Facebook give every
-video a placeholder title ("Video by xxx", "…の動画"). Resolution order:
+Where the subject comes from depends on the platform. On **YouTube** (and Vimeo,
+Dailymotion, niconico) the title is written by the uploader and names the video,
+so it is used as-is:
+
+- `「ブレストレーニング」世界一流の実演解説【FABIEN WALLERAND】【Tuba】【チューバ】`
+  → `20260921_ブレストレーニング_世界一流の実演解説_FABIEN_WALLERAND_Tuba_チューバ.mp4`
+
+Instagram and Facebook give every video a placeholder title ("Video by xxx",
+"…の動画"), so there the subject comes from the **post body**. Resolution order:
 
 1. **A title the author declared** on a line of its own in `『』` or `【】`, kept
    verbatim including emoji — `『焼きシーザーサラダ🥬』` → `20260817_焼きシーザーサラダ🥬.mp4`

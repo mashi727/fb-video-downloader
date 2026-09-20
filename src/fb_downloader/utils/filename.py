@@ -10,6 +10,7 @@ import subprocess
 import logging
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlparse
 
 from ..core.models import VideoInfo
 
@@ -24,6 +25,18 @@ EMOJI_RANGES = (
     "\U0001fa70-\U0001faff"  # symbols extended-A
     "\U00002600-\U000026ff"  # miscellaneous symbols
     "\U00002700-\U000027bf"  # dingbats (✨)
+)
+
+
+# Platforms whose title is written by the uploader and names the video.
+# Everywhere else (Instagram, Facebook) the title is filler and the subject
+# has to come out of the post body.
+TITLE_FIRST_DOMAINS = (
+    "youtube.com",
+    "youtu.be",
+    "vimeo.com",
+    "dailymotion.com",
+    "nicovideo.jp",
 )
 
 
@@ -137,12 +150,24 @@ class FileNameGenerator:
     def _create_content_summary(cls, video_info: VideoInfo) -> str:
         """Derive a name that says what the video is about.
 
-        The post body is the only place that describes the content: on
-        Instagram and Facebook the title field is a placeholder ("Video by
-        xxx", "…の動画"), so it is consulted last.
+        Where the subject lives depends on the platform: a YouTube title is
+        written by the uploader and names the video, while Instagram and
+        Facebook fill that field with "Video by xxx" / "…の動画" and leave the
+        subject in the post body.
         """
         body = (video_info.description or "").strip()
         title = (video_info.title or "").strip()
+
+        # 0. On YouTube and friends the title is the subject. Reading the body
+        #    first would pick up a promo heading such as 【フランス留学・フランス語
+        #    レッスン】 from a video that is actually about breathing exercises.
+        if (
+            title
+            and cls._title_is_authoritative(video_info.source_url)
+            and not cls._is_placeholder_title(title, video_info.uploader)
+        ):
+            logger.debug(f"Title supplied by the platform: {title}")
+            return cls._sanitize_filename(title)
 
         # 1. The author's own declared title, e.g. a line reading 『焼きシーザーサラダ🥬』
         declared = cls._extract_declared_title(body) if body else ""
@@ -192,6 +217,14 @@ class FileNameGenerator:
                 return candidate
 
         return ""
+
+    @staticmethod
+    def _title_is_authoritative(source_url):
+        """Whether this platform gives every video a title worth using"""
+        if not source_url:
+            return False
+        host = urlparse(source_url).netloc.lower()
+        return any(host == d or host.endswith("." + d) for d in TITLE_FIRST_DOMAINS)
 
     @classmethod
     def _is_placeholder_title(cls, title: str, uploader: Optional[str] = None) -> bool:
@@ -373,7 +406,7 @@ class FileNameGenerator:
         text = text.replace("‍", "").replace("️", "")
 
         # First, replace spaces and common separators with underscore
-        text = re.sub(r"[\s,;:：、。！？・]+", "_", text)
+        text = re.sub(r"[\s,;:：、。！？・「」『』【】〔〕《》〈〉〖〗()\[\]{}]+", "_", text)
 
         # Keep alphanumerics (including Japanese), hyphen, underscore and
         # emoji: the author's own title carries them (『焼きシーザーサラダ🥬』)

@@ -141,3 +141,59 @@ class TestFileNameGenerator:
         mock_run.side_effect = FileNotFoundError()
         result = FileNameGenerator._summarize_with_claude("Test text", max_length=50)
         assert result is None
+
+
+class TestTitlePriority:
+    """Where the subject comes from depends on the platform"""
+
+    YOUTUBE_TITLE = "「ブレストレーニング」世界一流の実演解説【FABIEN WALLERAND】【Tuba】"
+    # A promo heading the channel repeats under every video
+    BODY_WITH_PROMO = "呼吸の解説です\n\n【フランス留学・フランス語レッスン】\nお問い合わせはこちら"
+
+    @staticmethod
+    def _info(url, title, body, uploader="someone"):
+        return VideoInfo(
+            url="",
+            quality=VideoQuality.STANDARD,
+            title=title,
+            uploader=uploader,
+            description=body,
+            source_url=url,
+        )
+
+    def test_youtube_uses_the_uploaders_title(self):
+        info = self._info("https://youtu.be/5QRwuh1lIn8", self.YOUTUBE_TITLE, self.BODY_WITH_PROMO)
+
+        summary = FileNameGenerator._create_content_summary(info)
+
+        assert summary.startswith("ブレストレーニング")
+        assert "フランス" not in summary
+
+    def test_youtu_be_and_www_youtube_are_both_recognised(self):
+        for url in ("https://youtu.be/x", "https://www.youtube.com/watch?v=x"):
+            assert FileNameGenerator._title_is_authoritative(url)
+
+    def test_instagram_keeps_reading_the_post_body(self):
+        info = self._info(
+            "https://www.instagram.com/reel/AAA",
+            "Video by shinchan__recipe",
+            "紹介文\n\n『焼きシーザーサラダ🥬』\n\n⚪︎材料",
+        )
+
+        assert FileNameGenerator._create_content_summary(info) == "焼きシーザーサラダ🥬"
+
+    def test_body_wins_when_the_source_is_unknown(self):
+        """Renaming has no URL to go on, so the old order must still apply"""
+        info = self._info(None, "何かのタイトル", "紹介文\n\n『焼きシーザーサラダ🥬』")
+
+        assert FileNameGenerator._create_content_summary(info) == "焼きシーザーサラダ🥬"
+
+    def test_placeholder_title_falls_through_even_on_youtube(self):
+        info = self._info("https://youtu.be/x", "動画", "紹介文\n\n『焼きシーザーサラダ🥬』")
+
+        assert FileNameGenerator._create_content_summary(info) == "焼きシーザーサラダ🥬"
+
+    def test_brackets_separate_words_instead_of_vanishing(self):
+        sanitized = FileNameGenerator._sanitize_filename(self.YOUTUBE_TITLE)
+
+        assert sanitized == "ブレストレーニング_世界一流の実演解説_FABIEN_WALLERAND_Tuba"

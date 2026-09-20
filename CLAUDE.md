@@ -72,9 +72,14 @@ The application follows a modular architecture with clear separation of concerns
 3. **Key Features**
    - **Intelligent Filename Generation** (`src/fb_downloader/utils/filename.py`):
      - Names are `YYYYMMDD_<subject of the video>`; the account name is not part of it
-     - The **post body** is the source of truth. On Instagram/Facebook the title
-       field is a placeholder ("Video by xxx", "…の動画"), so it is consulted last
-     - Resolution order: (1) a title the author declares on its own line in
+     - On `TITLE_FIRST_DOMAINS` (YouTube, Vimeo, …) the platform title is the
+       subject and is used as-is. Reading the body first there picks up promo
+       headings — a breathing-exercise video was named after a 【フランス留学・
+       フランス語レッスン】 line repeated under every upload
+     - Everywhere else the **post body** is the source of truth: Instagram and
+       Facebook fill the title with "Video by xxx" / "…の動画"
+     - Resolution order: (0) the platform title on a title-first domain;
+       (1) a title the author declares on its own line in
        `『』`/`【】`, kept verbatim including emoji; (2) `claude -p` asked for the
        subject of the post (~5s, `CLAUDE_TIMEOUT=30` — 10s always lost the race);
        (3) the platform title when it is not a placeholder; (4) local summarization
