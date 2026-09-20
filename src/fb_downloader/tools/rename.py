@@ -86,11 +86,20 @@ def _members_of(media: Path) -> List[Path]:
     return members
 
 
+def _strip_leading_link(text: str) -> str:
+    """Drop the source link fbdl writes at the top of a description"""
+    lines = text.splitlines()
+    if lines and lines[0].strip().startswith(("http://", "https://")):
+        return "\n".join(lines[1:]).strip()
+    return text
+
+
 def _read_description(members: List[Path]) -> str:
     for member in members:
         if member.suffix == ".txt":
             try:
-                return member.read_text(encoding="utf-8", errors="replace").strip()
+                body = member.read_text(encoding="utf-8", errors="replace").strip()
+                return _strip_leading_link(body)
             except OSError as e:
                 logger.warning(f"Cannot read {member}: {e}")
     return ""

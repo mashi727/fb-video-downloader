@@ -42,6 +42,7 @@ class FacebookVideoDownloader(BaseDownloader):
             video_info = self.extractor.extract(html_content)
             if not video_info:
                 raise VideoNotFoundError("Video URL not found")
+            video_info.source_url = url
 
             # Determine filename
             if output_path is None:

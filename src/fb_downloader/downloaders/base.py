@@ -77,6 +77,12 @@ class BaseDownloader(ABC):
             logger.info("Description is empty")
             return
 
+        if video_info.source_url:
+            # The link goes first so the file records where the video came
+            # from. It also makes a folder of these files usable as a batch
+            # list: `fbdl` reads any http(s) URL it finds in a .txt.
+            description = f"{video_info.source_url}\n\n{description}"
+
         txt_path = output_path.with_suffix(".txt")
         try:
             txt_path.write_text(description, encoding="utf-8")

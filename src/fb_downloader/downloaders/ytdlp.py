@@ -481,7 +481,7 @@ class YtDlpDownloader(BaseDownloader):
                 raise RuntimeError("yt-dlp returned no video information")
 
             # Create VideoInfo
-            video_info = self._create_video_info(info)
+            video_info = self._create_video_info(info, url)
 
             # If yt-dlp didn't provide description, fetch it from the page
             if not video_info.description and info:
@@ -642,7 +642,7 @@ class YtDlpDownloader(BaseDownloader):
         return None
 
     @staticmethod
-    def _create_video_info(info: Dict[str, Any]) -> VideoInfo:
+    def _create_video_info(info: Dict[str, Any], source_url: str = "") -> VideoInfo:
         """Create VideoInfo from yt-dlp info"""
         # yt-dlp stores post body in different fields depending on the extractor
         description = (
@@ -658,6 +658,9 @@ class YtDlpDownloader(BaseDownloader):
             uploader=info.get("uploader") or info.get("channel"),
             description=description,
             video_id=str(info.get("id", "")),
+            # The requested URL wins: yt-dlp rewrites a Facebook reel into an
+            # m.facebook.com watch URL, which is not the link to keep.
+            source_url=source_url or info.get("original_url") or info.get("webpage_url") or None,
         )
 
     @staticmethod

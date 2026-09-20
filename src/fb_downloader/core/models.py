@@ -27,6 +27,8 @@ class VideoInfo:
     uploader: Optional[str] = None
     description: Optional[str] = None
     video_id: Optional[str] = None
+    # Page the video was downloaded from; written at the top of the .txt
+    source_url: Optional[str] = None
 
 
 @dataclass

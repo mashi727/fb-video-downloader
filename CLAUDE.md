@@ -80,6 +80,11 @@ The application follows a modular architecture with clear separation of concerns
        (3) the platform title when it is not a placeholder; (4) local summarization
      - `_sanitize_filename` keeps emoji (`EMOJI_RANGES`) and must NOT convert the
        katakana prolonged sound mark `ー` — doing so mangles シーザー into シ-ザ-
+   - **Description sidecar** (`downloaders/base.py::_save_description`): the `.txt`
+     leads with `VideoInfo.source_url` (the URL as requested, since yt-dlp rewrites
+     a Facebook reel into an `m.facebook.com` watch URL), then a blank line, then
+     the post body. `tools/rename.py::_strip_leading_link` removes that line before
+     deriving a title, so the link never becomes part of the filename.
    - **URL Validation** (`src/fb_downloader/utils/validator.py`): Validates and cleans Facebook URLs
    - **Progress Tracking** (`src/fb_downloader/utils/progress.py`): Visual download progress with speed calculation
 

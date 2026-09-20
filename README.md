@@ -155,9 +155,20 @@ video a placeholder title ("Video by xxx", "…の動画"). Resolution order:
 4. **Local summarization**, when `claude` is unavailable — the first line of the
    body that is not follow/save boilerplate
 
-The description is saved alongside as `.txt` with the same base name. When two
-videos resolve to the same name, `_2`, `_3` … is appended rather than
-overwriting.
+The description is saved alongside as `.txt` with the same base name, and its
+first line is the page the video was downloaded from:
+
+```
+https://www.instagram.com/reel/DaE7MMqBaL8
+
+【デトックスえのきスープ✨】
+⚪︎材料
+...
+```
+
+Because `fbdl` picks up any http(s) URL it finds in a `.txt`, a folder of these
+sidecars doubles as a batch list for re-downloading. When two videos resolve to
+the same name, `_2`, `_3` … is appended rather than overwriting.
 
 ### Renaming older downloads
 
