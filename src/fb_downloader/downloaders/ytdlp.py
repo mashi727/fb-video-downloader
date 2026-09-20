@@ -648,14 +648,37 @@ class YtDlpDownloader(BaseDownloader):
 
     @staticmethod
     def _finalize_subtitle(output_path: Path, sub_lang: str) -> None:
-        """Rename yt-dlp's '<base>.<lang>.srt' to the '<base>_yt.srt' convention"""
-        sub_src = output_path.with_name(f"{output_path.stem}.{sub_lang}.srt")
+        """Rename yt-dlp's subtitle file to the '<base>_yt.srt' convention.
+
+        The outtmpl carries the media extension, and yt-dlp appends
+        '.<lang>.<ext>' to the whole template, so the file lands as
+        '<base>.mp4.ja.srt' — not the '<base>.ja.srt' this once looked for,
+        which made every downloaded subtitle report itself as missing.
+        """
         sub_dst = output_path.with_name(f"{output_path.stem}_yt.srt")
-        if sub_src.exists():
+
+        candidates = [
+            output_path.with_name(f"{output_path.name}.{sub_lang}.srt"),
+            output_path.with_name(f"{output_path.stem}.{sub_lang}.srt"),
+        ]
+        # Whatever else yt-dlp may have written for this video (another
+        # language, a differently ordered suffix)
+        candidates.extend(
+            sorted(
+                path
+                for path in output_path.parent.iterdir()
+                if path.name.startswith(output_path.stem) and path.suffix == ".srt"
+            )
+        )
+
+        for sub_src in candidates:
+            if sub_src == sub_dst or not sub_src.exists():
+                continue
             sub_src.replace(sub_dst)
             logger.info(f"✓ Subtitle saved: {sub_dst}")
-        else:
-            logger.warning("No subtitles found for this video")
+            return
+
+        logger.warning("No subtitles found for this video")
 
     def _fetch_post_text(self, page_url: str, ydl: Any) -> Optional[str]:
         """Fetch the Facebook page and extract post body text using yt-dlp's session"""
