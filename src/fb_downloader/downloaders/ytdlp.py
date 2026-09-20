@@ -44,10 +44,14 @@ IMPERSONATE_FIRST_DOMAINS: Tuple[str, ...] = (
     "instagram.com",
 )
 
-# Cookie that proves a logged-in session, by site keyword
-SESSION_COOKIES: List[Tuple[Tuple[str, ...], str]] = [
-    (("facebook", "fb.watch", "fb.com"), "c_user"),
-    (("instagram",), "sessionid"),
+# Cookies that prove a logged-in session, by site keyword
+SESSION_COOKIES: List[Tuple[Tuple[str, ...], Tuple[str, ...]]] = [
+    (("facebook", "fb.watch", "fb.com"), ("c_user",)),
+    (("instagram",), ("sessionid",)),
+    # YouTube serves public videos fine when logged out. A jar holding only a
+    # stale visitor session is worse than none: its API then answers
+    # "Video unavailable" for videos that play without any cookie at all.
+    (("youtube", "youtu.be"), ("LOGIN_INFO", "__Secure-1PSID", "SID")),
 ]
 
 DEFAULT_HEADERS: Dict[str, str] = {
@@ -97,6 +101,9 @@ class YtDlpDownloader(BaseDownloader):
         self._impersonate_target: Any = None
         self._impersonate_resolved = False
         self._forced_browser: Optional[str] = None
+        # (domain, name) of every cookie we hold, to tell which sites we are
+        # actually signed in to
+        self._cookie_index: set = set()
 
     # ------------------------------------------------------------------
     # Capability detection
@@ -109,13 +116,34 @@ class YtDlpDownloader(BaseDownloader):
         return COOKIE_BROWSERS_BY_PLATFORM.get(platform.system(), COOKIE_BROWSERS).copy()
 
     @staticmethod
-    def _session_cookie_name(url: str) -> Optional[str]:
-        """Name of the cookie that proves a logged-in session for this URL"""
+    def _site_session(url: str) -> Optional[Tuple[Tuple[str, ...], Tuple[str, ...]]]:
+        """(site keywords, cookie names that prove a session) for this URL"""
         host = urlparse(url).netloc.lower()
-        for keywords, cookie in SESSION_COOKIES:
+        for keywords, names in SESSION_COOKIES:
             if any(keyword in host for keyword in keywords):
-                return cookie
+                return keywords, names
         return None
+
+    @staticmethod
+    def _jar_has_session(jar: Any, site: Tuple[Tuple[str, ...], Tuple[str, ...]]) -> bool:
+        """Whether this jar signs us in to the site described by `site`"""
+        keywords, names = site
+        return any(
+            cookie.name in names and any(k in cookie.domain.lower() for k in keywords)
+            for cookie in jar
+        )
+
+    def _cookies_carry_session(self, url: str) -> bool:
+        """Whether the cookies we hold actually sign us in to this site"""
+        site = self._site_session(url)
+        if not site:
+            # Nothing known about this site, so assume cookies may help
+            return True
+        keywords, names = site
+        return any(
+            name in names and any(k in domain for k in keywords)
+            for domain, name in self._cookie_index
+        )
 
     def _resolve_cookies(self, url: str) -> Optional[Path]:
         """Extract browser cookies once and cache them in a private temp file.
@@ -136,7 +164,7 @@ class YtDlpDownloader(BaseDownloader):
         except ImportError:
             return None
 
-        wanted = self._session_cookie_name(url)
+        site = self._site_session(url)
         fallback: Optional[Tuple[str, Any]] = None
 
         for browser in self._browser_candidates():
@@ -149,8 +177,8 @@ class YtDlpDownloader(BaseDownloader):
             if not len(jar):
                 continue
 
-            if wanted and not any(cookie.name == wanted for cookie in jar):
-                logger.debug(f"{browser}: no logged-in session (missing '{wanted}')")
+            if site and not self._jar_has_session(jar, site):
+                logger.debug(f"{browser}: no logged-in session (missing {site[1]})")
                 if fallback is None:
                     fallback = (browser, jar)
                 continue
@@ -158,8 +186,9 @@ class YtDlpDownloader(BaseDownloader):
             return self._store_cookies(browser, jar)
 
         if fallback:
-            logger.warning(
-                f"No logged-in session found in browser cookies; using {fallback[0]} anyway"
+            logger.info(
+                f"No logged-in session for this site in {fallback[0]}'s cookies; "
+                "they will only be tried as a fallback"
             )
             return self._store_cookies(*fallback)
 
@@ -169,6 +198,7 @@ class YtDlpDownloader(BaseDownloader):
     def _store_cookies(self, browser: str, jar: Any) -> Optional[Path]:
         """Persist an extracted cookie jar so every retry reuses one extraction"""
         self._available_browser = browser
+        self._cookie_index = {(cookie.domain.lower(), cookie.name) for cookie in jar}
         logger.info(f"Using cookies from: {browser}")
 
         try:
@@ -265,7 +295,15 @@ class YtDlpDownloader(BaseDownloader):
         has_cookies = self._resolve_cookies(url) is not None or self._available_browser is not None
         has_impersonate = self._detect_impersonate_target() is not None
 
-        cookie_modes = [True, False] if has_cookies else [False]
+        if not has_cookies:
+            cookie_modes = [False]
+        elif self._cookies_carry_session(url):
+            cookie_modes = [True, False]
+        else:
+            # Cookies that do not sign us in are not merely useless here: a
+            # logged-out YouTube visitor session makes public videos fail with
+            # "Video unavailable", so the plain request goes first.
+            cookie_modes = [False, True]
         if not has_impersonate:
             impersonate_modes = [False]
         elif self._needs_impersonation(url):

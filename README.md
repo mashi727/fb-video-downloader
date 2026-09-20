@@ -102,17 +102,22 @@ python fb_downloader_cli.py <Facebook_Video_URL> [output_filename]
 
 ### How a download is attempted
 
-For each URL, fbdl escalates through up to four strategies and stops at the
-first success:
+For each URL, fbdl escalates through up to four strategies (browser cookies ×
+TLS impersonation) and stops at the first success. The order depends on the
+site:
 
-1. browser cookies + TLS impersonation (what Facebook reels require)
-2. browser cookies only
-3. TLS impersonation only
-4. plain request
+- **Facebook / Instagram**, where a session is held: cookies + TLS impersonation
+  first, since neither alone returns any video data
+- **YouTube while logged out**: the plain request first. Sending a stale
+  logged-out visitor session makes YouTube's API answer `Video unavailable` for
+  videos that play fine without any cookie; cookies remain as a later fallback
+- **YouTube while logged in**: cookies first, so members-only and age-restricted
+  videos work
 
 Cookies are taken from the first browser that holds a live session for the
-target site (`c_user` for Facebook, `sessionid` for Instagram), extracted once
-per run into a private temporary file that is deleted on exit.
+target site (`c_user` for Facebook, `sessionid` for Instagram, `LOGIN_INFO` for
+YouTube), extracted once per run into a private temporary file that is deleted
+on exit.
 
 ### Python API
 

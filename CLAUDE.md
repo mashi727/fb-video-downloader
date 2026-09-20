@@ -66,6 +66,11 @@ The application follows a modular architecture with clear separation of concerns
      (cookies × TLS impersonation). Facebook returns no video data unless the request
      carries both a logged-in session and a browser-like TLS fingerprint (curl_cffi),
      which is why `curl_cffi` is a hard requirement for Facebook reels.
+   - **Attempt order follows the session we hold** (`_cookies_carry_session`): cookies
+     go first only when the jar has that site's login cookie (`SESSION_COOKIES`).
+     Otherwise the plain request leads — a logged-out YouTube visitor session makes
+     public videos fail with "Video unavailable", so sending it is worse than
+     sending nothing.
    - **Quality**: format selection is `bv*+ba/b` capped via `format_sort: ["res:1080"]`.
      A `height<=1080` filter must not be used — it rejects vertical 1080x1920 reels.
 
