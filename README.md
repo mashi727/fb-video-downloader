@@ -2,6 +2,14 @@
 
 A robust Python package for downloading videos from Facebook with intelligent filename generation and comprehensive error handling.
 
+## How it works
+
+What the problem is, and how this tool solves it, as a PAD (Problem Analysis Diagram). Each step is detailed in the sections below.
+
+<img src="docs/pad/concept.png" alt="PAD of the approach. To save a posted video under its subject, fbdl takes a URL or a .txt list, picks yt-dlp or the built-in scraper, escalates cookie and TLS strategies, names the file by its subject, and fbdl-rename renames older downloads after a person previews them" width="100%">
+
+<sub>The diagram's source is [`docs/pad/concept.spd`](docs/pad/concept.spd). It is checked and rendered with [padkit](https://github.com/mashi727/padkit).</sub>
+
 ## 🌟 Features
 
 - 🎥 Download videos from various Facebook URL formats (Watch, Reel, Share, etc.)

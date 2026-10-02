@@ -1,0 +1,22 @@
+Save a posted video under its subject
+	:comment Problem: FB wants login + browser TLS
+	:comment Approach: escalate yt-dlp strategies
+	Take a URL or a list of URLs
+		:if Is the argument a .txt file?
+			Download each URL in it@$ fbdl urls.txt
+		:else
+			Download the one URL@$ fbdl <URL>
+	Choose the downloader
+		:if Audio or subtitles only?
+			Use yt-dlp alone@$ fbdl <URL> -a / --subs / -S
+		:else
+			Try yt-dlp, then fall back@to the built-in scraper
+	Escalate cookies x TLS impersonation
+		Stop at the first success@(order depends on the site)
+	Name the file by its subject
+		YYYYMMDD_<subject>, from a@declared title or claude -p
+		Save the post body as .txt@(first line: source URL)
+	:while Are older downloads misnamed?
+		Person previews the renames@$ fbdl-rename -n
+		Rename video, .txt and .srt@$ fbdl-rename
+	:terminal Videos named by what they show
