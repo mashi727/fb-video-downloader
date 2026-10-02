@@ -1,5 +1,5 @@
 Save a posted video under its subject
-	:comment Problem: FB wants login + browser TLS
+	:comment Challenge: FB wants login + browser TLS
 	:comment Approach: escalate yt-dlp strategies
 	Take a URL or a list of URLs
 		:if Is the argument a .txt file?
